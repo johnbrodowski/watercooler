@@ -14,7 +14,7 @@ unsigned long compTempTime;
 bool wasRunning = false;
 bool Cooling = false;
 bool ProtectionMode = false;
-bool safeStart = true;
+bool safeStart;
 
 const int numReadings = 5;
 int readings[numReadings];                // the readings from the analog input
@@ -22,12 +22,13 @@ int readIndex = 0;                        // the index of the current reading
 int total = 0;                            // the running total
 int inputPin = 0;                         // Tmp36 data pin
 int compTemp;
-int setTemp = 27;
+int setTemp = 67;
 int waterTemp;
 int waterHysteresis = 1;
 int onTime = 0;
 int waitTime = 0;
-
+int downTime = 0;
+int safeTime = 4;
 OneWire oneWire(ONE_WIRE_BUS);
 
 DallasTemperature sensors(&oneWire);
@@ -35,10 +36,10 @@ DallasTemperature sensors(&oneWire);
 void setup()
 {
 	Serial.begin(115200);
-	pinMode(3, OUTPUT);
+	pinMode(8, OUTPUT);
 	startTime = millis();
 	sensors.begin();
-	Cooling = true;
+	//Cooling = true;
 	wasRunning = false;
 	safeStart = true;
 }
@@ -51,13 +52,16 @@ void loop() {
 		//Delay initial start to ensure compressor has had time to decompress.
 		//otherwise the compressor will have a hard time starting.
 		if (safeStart) {
-			if (waitTime >= 5) {
+			if ((waitTime + downTime) >= safeTime) {
 				safeStart = false;
+				if (Cooling) {
+					digitalWrite(8, HIGH);
+				}
 				waitTime = 0;
 			}
 			else {
 				waitTime++;
-				Serial.println("Wait time " + String(waitTime));
+				Serial.println("Wait time " + (String)(safeTime - waitTime));
 			}
 		}
 		else {
@@ -78,12 +82,12 @@ void loop() {
 						Serial.println("Overheat Protection Temp over 200F");
 					}
 					else {
-						if (onTime <= 29) {  // Turn on compressor for 30 min.
+						if (onTime <= 1800) {  // Turn on compressor for 30 min.
 							onTime++;
 							StartCompressor();
-							Serial.println("Running");
+							Serial.println("Running " + (String)(1800 - onTime));
 						}
-						else if ((onTime > 29) && (onTime <= 34)) {  // Shut off compressor for 5 min.
+						else if ((onTime >= 1800) && (onTime <= 2100)) {  // Shut off compressor for 5 min.
 							onTime++;
 							CoolCompressor();
 							Serial.println("Cool down ");
@@ -93,14 +97,28 @@ void loop() {
 						}
 					}
 				}
+				else
+				{
+					Serial.println("                  Down Time  " + (String)(downTime));
+					StopCompressor();
+					downTime++;
+				}
 			}
 		}
 	}
 }
 
 void StartCompressor() {
+	if (downTime > 300) {
+		safeStart = false;
+		digitalWrite(8, HIGH);
+	}
+	else
+	{
+		safeStart = true;
+	}
 	Cooling = true;
-	digitalWrite(8, HIGH);
+	
 }
 
 void StopCompressor() {
@@ -127,14 +145,14 @@ void CompressorTemp() {
 	float temperatureC = (voltage - 0.5) * 100;  //converting from 10 mv per degree wit 500 mV offset
 	float temperatureF = (temperatureC * 9.0 / 5.0) + 32.0;
 	compTemp = (int)temperatureF + 5;
-	Serial.println("Compressor Temp " + (String)(compTemp));
 }
 
 void WaterTemp() {
 	sensors.requestTemperatures(); // Send the command to get temperatures
 	waterTemp = (int)(sensors.getTempCByIndex(0));
-	int tempInt = (waterTemp * 9.0 / 5.0) + 32.0;
-	Serial.println("Water Temp " + (String)(tempInt));
+	waterTemp = (waterTemp * 9.0 / 5.0) + 32.0;
+	Serial.println("Water Temp " + (String)(waterTemp)+" --  Compressor Temp " + (String)(compTemp));
+
 	if (waterTemp <= (setTemp - waterHysteresis)) {
 		Cooling = false;
 	}
