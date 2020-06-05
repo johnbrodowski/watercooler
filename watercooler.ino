@@ -54,12 +54,15 @@ void loop() {
 
 		if (waterTemp <= (setTemp - waterHysteresis)) {
 			Cooling = false;
-			waitTime = 0;
-			downTime = 0;
+			//waitTime = 0;
+			//downTime = 0;
 		}
 		else if (waterTemp >= (setTemp + waterHysteresis)) {
+			if (Cooling == false) {
+				safeStart = true;
+			}
 			Cooling = true;
-			downTime = 0;
+			
 		}
 
 		if (safeStart) {
@@ -67,13 +70,15 @@ void loop() {
 				safeStart = false;
 				if (Cooling) {
 					digitalWrite(8, HIGH);
-					waitTime = 0;
-					downTime = 0;
+					//waitTime = 0;
+					//downTime = 0;
 				}
 			}
 			else {
 				waitTime++;
-				Serial.println("                  Wait time " + (String)(waitTime));
+				if (Cooling) {
+					Serial.println("                  Wait time " + (String)(waitTime));
+				}
 			}
 		}
 		else {
@@ -87,7 +92,7 @@ void loop() {
 			}
 			else {
 				if (Cooling) {  // Start cooling
-					downTime = 0;
+					
 					if (compTemp >= MAXTEMP) { // If max temp is reached go into protection mode.
 						ProtectionMode = true;
 						safeStart = true;
@@ -96,22 +101,23 @@ void loop() {
 						Serial.println("Overheat Protection Temp over 200F");
 					}
 					else {
-
-						if (onTime >= 1800) {  // Turn on compressor for 30 min.
+						if (onTime <= 1800) {  // Turn on compressor for 30 min.
 							digitalWrite(8, HIGH);
 							onTime++;
+							waitTime = 0;
+							downTime = 0;
 							Serial.println("Running " + (String)(onTime));
 						}
 						else if ((onTime >= 1800) && (onTime <= 2100)) {  // Shut off compressor for 5 min.
 							digitalWrite(8, LOW);
 							onTime++;
-							Serial.println("Cool down ");
+							Serial.println("Cool down " + (String)(onTime));
 						}
 						else if (onTime > 2100) {
 							//safeStart = true;
 							onTime = 0;
-						}
 
+						}
 					}
 				}
 				else
@@ -119,7 +125,7 @@ void loop() {
 					onTime = 0;
 					Serial.println("                  Down Time  " + (String)(downTime));
 					digitalWrite(8, LOW);
-					safeStart = true;
+					//safeStart = true;
 					downTime++;
 				}
 			}
@@ -130,10 +136,6 @@ void loop() {
 void StopCompressor() {
 	Cooling = false;
 	onTime = 0;
-	digitalWrite(8, LOW);
-}
-
-void CoolCompressor() {
 	digitalWrite(8, LOW);
 }
 
