@@ -54,24 +54,18 @@ void loop() {
 
 		if (waterTemp <= (setTemp - waterHysteresis)) {
 			Cooling = false;
-			//waitTime = 0;
-			//downTime = 0;
 		}
 		else if (waterTemp >= (setTemp + waterHysteresis)) {
 			if (Cooling == false) {
 				safeStart = true;
 			}
 			Cooling = true;
-			
 		}
-
 		if (safeStart) {
 			if ((waitTime + downTime) >= safeTime) {
 				safeStart = false;
 				if (Cooling) {
 					digitalWrite(8, HIGH);
-					//waitTime = 0;
-					//downTime = 0;
 				}
 			}
 			else {
@@ -114,9 +108,7 @@ void loop() {
 							Serial.println("Cool down " + (String)(onTime));
 						}
 						else if (onTime > 2100) {
-							//safeStart = true;
 							onTime = 0;
-
 						}
 					}
 				}
@@ -125,7 +117,6 @@ void loop() {
 					onTime = 0;
 					Serial.println("                  Down Time  " + (String)(downTime));
 					digitalWrite(8, LOW);
-					//safeStart = true;
 					downTime++;
 				}
 			}
