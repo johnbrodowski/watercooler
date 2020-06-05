@@ -6,7 +6,7 @@
 #define thirtySec 30000
 #define oneMin    60000
 #define ONE_WIRE_BUS 2
-#define MAXTEMP 80
+#define MAXTEMP 200
 
 unsigned long startTime;
 unsigned long compTempTime;
@@ -84,7 +84,7 @@ void loop() {
 		else {
 			if (ProtectionMode) {  // Compressor has overheated and needs time to cool down
 				Serial.println("Protection Mode");
-				if (compTemp <= 75) {  // Wait for compressor to get down to 120 degrees.
+				if (compTemp <= 100) {  // Wait for compressor to get down to 120 degrees.
 					Cooling = true;
 					ProtectionMode = false;
 					Serial.println("Overheat Protection Off");
