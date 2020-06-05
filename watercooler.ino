@@ -39,7 +39,6 @@ void setup()
 	pinMode(8, OUTPUT);
 	startTime = millis();
 	sensors.begin();
-	//Cooling = true;
 	wasRunning = false;
 	safeStart = true;
 }
