@@ -24,11 +24,11 @@ int inputPin = 0;                         // Tmp36 data pin
 int compTemp;
 int setTemp = 67;
 int waterTemp;
-int waterHysteresis = 1;
+int waterHysteresis = 2;
 int onTime = 0;
 int waitTime = 0;
 int downTime = 0;
-int safeTime = 4;
+int safeTime = 300;
 OneWire oneWire(ONE_WIRE_BUS);
 
 DallasTemperature sensors(&oneWire);
@@ -51,17 +51,29 @@ void loop() {
 		WaterTemp();
 		//Delay initial start to ensure compressor has had time to decompress.
 		//otherwise the compressor will have a hard time starting.
+
+		if (waterTemp <= (setTemp - waterHysteresis)) {
+			Cooling = false;
+			waitTime = 0;
+			downTime = 0;
+		}
+		else if (waterTemp >= (setTemp + waterHysteresis)) {
+			Cooling = true;
+			downTime = 0;
+		}
+
 		if (safeStart) {
 			if ((waitTime + downTime) >= safeTime) {
 				safeStart = false;
 				if (Cooling) {
 					digitalWrite(8, HIGH);
+					waitTime = 0;
+					downTime = 0;
 				}
-				waitTime = 0;
 			}
 			else {
 				waitTime++;
-				Serial.println("Wait time " + (String)(safeTime - waitTime));
+				Serial.println("                  Wait time " + (String)(waitTime));
 			}
 		}
 		else {
@@ -75,32 +87,39 @@ void loop() {
 			}
 			else {
 				if (Cooling) {  // Start cooling
+					downTime = 0;
 					if (compTemp >= MAXTEMP) { // If max temp is reached go into protection mode.
 						ProtectionMode = true;
+						safeStart = true;
 						StopCompressor();
 						onTime = 0;
 						Serial.println("Overheat Protection Temp over 200F");
 					}
 					else {
-						if (onTime <= 1800) {  // Turn on compressor for 30 min.
+
+						if (onTime >= 1800) {  // Turn on compressor for 30 min.
+							digitalWrite(8, HIGH);
 							onTime++;
-							StartCompressor();
-							Serial.println("Running " + (String)(1800 - onTime));
+							Serial.println("Running " + (String)(onTime));
 						}
 						else if ((onTime >= 1800) && (onTime <= 2100)) {  // Shut off compressor for 5 min.
+							digitalWrite(8, LOW);
 							onTime++;
-							CoolCompressor();
 							Serial.println("Cool down ");
 						}
-						else {
+						else if (onTime > 2100) {
+							//safeStart = true;
 							onTime = 0;
 						}
+
 					}
 				}
 				else
 				{
+					onTime = 0;
 					Serial.println("                  Down Time  " + (String)(downTime));
-					StopCompressor();
+					digitalWrite(8, LOW);
+					safeStart = true;
 					downTime++;
 				}
 			}
@@ -108,21 +127,9 @@ void loop() {
 	}
 }
 
-void StartCompressor() {
-	if (downTime > 300) {
-		safeStart = false;
-		digitalWrite(8, HIGH);
-	}
-	else
-	{
-		safeStart = true;
-	}
-	Cooling = true;
-	
-}
-
 void StopCompressor() {
 	Cooling = false;
+	onTime = 0;
 	digitalWrite(8, LOW);
 }
 
@@ -152,11 +159,4 @@ void WaterTemp() {
 	waterTemp = (int)(sensors.getTempCByIndex(0));
 	waterTemp = (waterTemp * 9.0 / 5.0) + 32.0;
 	Serial.println("Water Temp " + (String)(waterTemp)+" --  Compressor Temp " + (String)(compTemp));
-
-	if (waterTemp <= (setTemp - waterHysteresis)) {
-		Cooling = false;
-	}
-	else if (waterTemp >= (setTemp + waterHysteresis)) {
-		Cooling = true;
-	}
 }
